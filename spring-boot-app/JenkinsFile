@@ -4,6 +4,7 @@ pipeline {
     environment {
         SONAR_URL = "http://192.168.56.13:9000"
         DOCKER_REPO = "nobeldhakal123/springbootapp:v1"
+        CONTAINER_NAME = "springboot-app"
     }
 
     stages {
@@ -24,24 +25,44 @@ pipeline {
         stage('Static Code Analysis') {
             steps {
                 withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
-                    sh 'mvn sonar:sonar -f spring-boot-app/pom.xml -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=${SONAR_URL}'
+                    sh '''
+                      mvn sonar:sonar \
+                      -f spring-boot-app/pom.xml \
+                      -Dsonar.login=$SONAR_AUTH_TOKEN \
+                      -Dsonar.host.url=${SONAR_URL}
+                    '''
                 }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo "Building a Docker image of the Java app..."
-                sh "docker build -t ${env.DOCKER_REPO} spring-boot-app"
+                echo "Building Docker image..."
+                sh "docker build -t ${DOCKER_REPO} spring-boot-app"
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                echo "Pushing the Docker image to Docker Hub..."
+                echo "Pushing Docker image..."
                 withDockerRegistry([credentialsId: 'docregcred', url: '']) {
-                    sh "docker push ${env.DOCKER_REPO}"
+                    sh "docker push ${DOCKER_REPO}"
                 }
+            }
+        }
+
+        stage('Run Docker Container') {
+            steps {
+                echo "Running application container..."
+
+                sh '''
+                  docker rm -f ${CONTAINER_NAME} || true
+
+                  docker run -d \
+                    --name ${CONTAINER_NAME} \
+                    -p 8010:8089 \
+                    ${DOCKER_REPO}
+                '''
             }
         }
     }
