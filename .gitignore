@@ -1,0 +1,6 @@
+# Maven build folder
+spring-boot-app/target/
+
+# Logs
+*.log
+
